@@ -5,17 +5,24 @@ import socket
 from time import sleep
 from sqlite3 import Error
 
-address = ('', 8870)
 
+# Лок для записи в базу данных
+db_lock = threading.Lock()
+
+
+# Адрес сокета
+address = ('', 8890)
+
+# Файлы для чтения
 path = '/Users/davidkistauri/Desktop/'
 file_names = ['file1.json', 'file2.json', 'file3.json']
 file_paths = []
 for i in file_names:
     file_paths.append(path + i)
+
+# База данных и таблицы
 db_name = 'db.sqlite'
 tables = ['table1', 'table2', 'table3']
-
-db = None
 
 
 # Подключение к базе данных SQLite
@@ -75,54 +82,58 @@ def read_from(file, func, db):
 
 # Запись в базу данных текста новости
 def write_db_text(db, key, value):
-    cursor = db.cursor()
     insert = f"insert or ignore into {tables[0]} values (:key, :value)"
+    db_lock.acquire()
+    cursor = db.cursor()
     cursor.execute(insert, (key, value))
+    db_lock.release()
 
 
 # Запись в базу данных картинок новости
 def write_db_pics(db, key, value):
-    cursor = db.cursor()
     insert = f"insert or ignore into {tables[1]} values (:key, :value)"
+    db_lock.acquire()
+    cursor = db.cursor()
     cursor.execute(insert, (key, json.dumps(value)))
+    db_lock.release()
 
 
 # Запись в базу данных тегов и ссылок новости
 def write_db_tags(db, key, value):
-    cursor = db.cursor()
     insert = f"insert or ignore into {tables[2]} values (:key, :value)"
-    cursor.execute(insert, (key, json.dumps(value)))
-
-
-def execute_query(db, query):
+    db_lock.acquire()
     cursor = db.cursor()
-    try:
-        cursor.execute(query)
-    except Error as e:
-        print(f"Не получилось выполнить инструкцию '{query}'. Ошибка '{e}'.")
+    cursor.execute(insert, (key, json.dumps(value)))
+    db_lock.release()
 
 
 # Метод для чтения. Используется как поток
 def readproc():
+    # Подключение к бд
+    db = connect_db()
+
+    # Создание таблиц
+    cursor = db.cursor()
+    cursor.execute(create_tables("text"))
+    cursor.execute(create_tables("pics"))
+    cursor.execute(create_tables("tags"))
+
+    # Создание сокета
     sock = socket.socket()
+    # Настройки сокета, которые позволяют использовать один и тот же адрес
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind(address)
     sock.listen(1)
 
+    # Приём сигнала
     conn, addr = sock.accept()
 
-    db = connect_db()
-
-    execute_query(db, create_tables("text"))
-    execute_query(db, create_tables("pics"))
-    execute_query(db, create_tables("tags"))
-
-    with conn:
-        print('Подключён к: ', addr)
+    try:
+        print('Подключен к сокету: ', addr)
         while True:
             data = conn.recv(1)
             if not data:
                 break
-            # if data == 1:
             print("Получаю управление от первого процесса")
 
             text_thread = threading.Thread(target=read, args=("text", db))
@@ -146,7 +157,11 @@ def readproc():
 
             # Передача управления другому потоку
             conn.sendall((1).to_bytes(1, 'big'))
-    db.close()
+    except KeyboardInterrupt:
+        print("\nЗакрываю соединение с базой данных")
+        db.close()
+        print("Закрываю сокет")
+        sock.close()
 
 
 if __name__ == '__main__':
