@@ -21,7 +21,7 @@
 Для запуска второго процесса как демона в macOS используются Launch Services. Файл `settings/com.dtroode.vk-daemon.plist` хранит настройки для запуска. Он помещается в `~/Library/LaunchAgents`. После этого выполняются две команды:
 
 ```
-launchctl bootstrap gui/<uid> com.dtroode.vk-daemon.plist
+launchctl bootstrap gui/<uid> ~/Library/LaunchAgents/com.dtroode.vk-daemon.plist
 launchctl kickstart -k gui/<uid>/com.dtroode.vk-daemon
 ```
 
