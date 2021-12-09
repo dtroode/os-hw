@@ -30,7 +30,7 @@ launchctl kickstart -k gui/<uid>/com.dtroode.vk-daemon
 Для удаления службы из списка используется команда:
 
 ```
-launchctl bootout gui/<uid> com.dtroode.vk-daemon.plist
+launchctl bootout gui/<uid> ~/Library/LaunchAgents/com.dtroode.vk-daemon.plist
 ```
 
 Интервал, указанный в настройках равен суткам в секундах – программа будет запускаться раз в сутки. Также в настройках указаны файлы для логов.
