@@ -158,7 +158,7 @@ def readproc():
                 # Передача управления другому потоку
                 conn.sendall((1).to_bytes(1, 'big'))
     except KeyboardInterrupt:
-        print("Закрываю сокет")
+        print("\nЗакрываю сокет")
         sock.close()
 
 
