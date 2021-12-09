@@ -30,7 +30,6 @@ def connect_db():
     connection = None
     try:
         connection = sqlite3.connect(path + db_name, check_same_thread=False)
-        print("Подключение к базе данных")
         return connection
     except Error as e:
         print(f"Произошка ошибка '{e}'.")
@@ -54,17 +53,17 @@ def create_tables(type):
 
 
 # Метод для выбора типа чтения
-def read(type, db):
+def read(type):
     if type == 'text':
-        read_from(file_paths[0], write_db_text, db)
+        read_from(file_paths[0], write_db_text)
     elif type == 'pics':
-        read_from(file_paths[1], write_db_pics, db)
+        read_from(file_paths[1], write_db_pics)
     elif type == 'tags':
-        read_from(file_paths[2], write_db_tags, db)
+        read_from(file_paths[2], write_db_tags)
 
 
 # Метод для чтения файла и записи его в таблицу
-def read_from(file, func, db):
+def read_from(file, func):
     data = {}
     # Если файл есть, то он прочитается и запишется в словарь
     try:
@@ -72,8 +71,13 @@ def read_from(file, func, db):
         data = json.loads(f.read())
         for key, value in data.items():
             print(threading.current_thread().name + " — " + file)
-            func(db, key, value)
-            sleep(0.5)
+            db = connect_db()
+            cursor = db.cursor()
+            func(cursor, key, value)
+            cursor.close()
+            db.commit()
+            db.close()
+            sleep(0.2)
         f.close()
     # Если файла нет, то выводится сообщение
     except IOError:
@@ -81,35 +85,27 @@ def read_from(file, func, db):
 
 
 # Запись в базу данных текста новости
-def write_db_text(db, key, value):
+def write_db_text(cursor, key, value):
     insert = f"insert or ignore into {tables[0]} values (:key, :value)"
-    db_lock.acquire()
-    cursor = db.cursor()
     cursor.execute(insert, (key, value))
-    db_lock.release()
 
 
 # Запись в базу данных картинок новости
-def write_db_pics(db, key, value):
+def write_db_pics(cursor, key, value):
     insert = f"insert or ignore into {tables[1]} values (:key, :value)"
-    db_lock.acquire()
-    cursor = db.cursor()
     cursor.execute(insert, (key, json.dumps(value)))
-    db_lock.release()
 
 
 # Запись в базу данных тегов и ссылок новости
-def write_db_tags(db, key, value):
+def write_db_tags(cursor, key, value):
     insert = f"insert or ignore into {tables[2]} values (:key, :value)"
-    db_lock.acquire()
-    cursor = db.cursor()
     cursor.execute(insert, (key, json.dumps(value)))
-    db_lock.release()
 
 
 # Метод для чтения. Используется как поток
 def readproc():
     # Подключение к бд
+    print("Подключаюсь к базе данных")
     db = connect_db()
 
     # Создание таблиц
@@ -117,6 +113,12 @@ def readproc():
     cursor.execute(create_tables("text"))
     cursor.execute(create_tables("pics"))
     cursor.execute(create_tables("tags"))
+
+    # Закрываемс соединение с бд
+    # Для каждого потока в дальнейшем будет установлено новое соединение
+    cursor.close()
+    db.commit()
+    db.close()
 
     # Создание сокета
     sock = socket.socket()
@@ -136,9 +138,9 @@ def readproc():
                 break
             print("Получаю управление от первого процесса")
 
-            text_thread = threading.Thread(target=read, args=("text", db))
-            pics_thread = threading.Thread(target=read, args=("pics", db))
-            tags_thread = threading.Thread(target=read, args=("tags", db))
+            text_thread = threading.Thread(target=read, args=("text",))
+            pics_thread = threading.Thread(target=read, args=("pics",))
+            tags_thread = threading.Thread(target=read, args=("tags",))
             text_thread.name = "п2т1"
             pics_thread.name = "п2т2"
             tags_thread.name = "п2т3"
@@ -153,13 +155,9 @@ def readproc():
             pics_thread.join()
             tags_thread.join()
 
-            db.commit()
-
             # Передача управления другому потоку
             conn.sendall((1).to_bytes(1, 'big'))
     except KeyboardInterrupt:
-        print("\nЗакрываю соединение с базой данных")
-        db.close()
         print("Закрываю сокет")
         sock.close()
 
