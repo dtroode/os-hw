@@ -14,7 +14,7 @@ db_lock = threading.Lock()
 address = ('', 8890)
 
 # Файлы для чтения
-path = '/Users/davidkistauri/Desktop/'
+path = '/Users/davidkistauri/Desktop/Education/ос/homework/data/'
 file_names = ['file1.json', 'file2.json', 'file3.json']
 file_paths = []
 for i in file_names:
@@ -127,36 +127,36 @@ def readproc():
     sock.bind(address)
     sock.listen(1)
 
-    # Приём сигнала
-    conn, addr = sock.accept()
-
     try:
-        print('Подключен к сокету: ', addr)
         while True:
-            data = conn.recv(1)
-            if not data:
-                break
-            print("Получаю управление от первого процесса")
+            # Приём сигнала
+            conn, addr = sock.accept()
+            print('Подключен к сокету: ', addr)
+            while True:
+                data = conn.recv(1)
+                if not data:
+                    break
+                print("Получаю управление от первого процесса")
 
-            text_thread = threading.Thread(target=read, args=("text",))
-            pics_thread = threading.Thread(target=read, args=("pics",))
-            tags_thread = threading.Thread(target=read, args=("tags",))
-            text_thread.name = "п2т1"
-            pics_thread.name = "п2т2"
-            tags_thread.name = "п2т3"
+                text_thread = threading.Thread(target=read, args=("text",))
+                pics_thread = threading.Thread(target=read, args=("pics",))
+                tags_thread = threading.Thread(target=read, args=("tags",))
+                text_thread.name = "п2т1"
+                pics_thread.name = "п2т2"
+                tags_thread.name = "п2т3"
 
-            print("Запускаю потоки для чтения")
-            text_thread.start()
-            pics_thread.start()
-            tags_thread.start()
+                print("Запускаю потоки для чтения")
+                text_thread.start()
+                pics_thread.start()
+                tags_thread.start()
 
-            # Синхронизация, чтоб процесс чтения дождался пока всё прочитается
-            text_thread.join()
-            pics_thread.join()
-            tags_thread.join()
+                # Синхронизация, чтоб процесс чтения дождался пока всё прочитается
+                text_thread.join()
+                pics_thread.join()
+                tags_thread.join()
 
-            # Передача управления другому потоку
-            conn.sendall((1).to_bytes(1, 'big'))
+                # Передача управления другому потоку
+                conn.sendall((1).to_bytes(1, 'big'))
     except KeyboardInterrupt:
         print("Закрываю сокет")
         sock.close()
