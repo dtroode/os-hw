@@ -20,7 +20,7 @@ barrier = threading.Barrier(4)
 address = ('localhost', 8890)
 
 # Файлы, в которые будем записывать
-path = '/Users/davidkistauri/Desktop/'
+path = './data/'
 file_names = ['file1.json', 'file2.json', 'file3.json']
 file_paths = []
 for i in file_names:
@@ -30,7 +30,7 @@ for i in file_names:
 count = 10
 
 # Токен для получения данных
-TOKEN = 'b90e9d2bda67118b2c50aa83d48a9c5aaf6f7f5ea716103b0ff2ffe22392ef7d8d3198e55abbb86b1f133'
+TOKEN = ''
 
 
 # Получаем посты
