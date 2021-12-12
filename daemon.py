@@ -1,9 +1,8 @@
 import json
-import sqlite3
 import threading
 import socket
 from time import sleep
-from sqlite3 import Error
+from database import *
 
 
 # Лок для записи в базу данных
@@ -25,45 +24,18 @@ db_name = 'db.sqlite'
 tables = ['table1', 'table2', 'table3']
 
 
-# Подключение к базе данных SQLite
-def connect_db():
-    connection = None
-    try:
-        connection = sqlite3.connect(path + db_name, check_same_thread=False)
-        return connection
-    except Error as e:
-        print(f"Произошка ошибка '{e}'.")
-
-
-# Функция для генерации запросов создания таблиц
-def create_tables(type):
-    query = """
-    create table if not exists {}(
-        post_id integer primary key,
-        post_tags text,
-        unique (post_id, post_tags)
-    )
-    """
-    if type == 'text':
-        return query.format(tables[0])
-    elif type == 'pics':
-        return query.format(tables[1])
-    elif type == 'tags':
-        return query.format(tables[2])
-
-
 # Метод для выбора типа чтения
-def read(type):
+def read_write(type):
     if type == 'text':
-        read_from(file_paths[0], write_db_text)
+        read_write_from(file_paths[0], write_db_text, tables[0])
     elif type == 'pics':
-        read_from(file_paths[1], write_db_pics)
+        read_write_from(file_paths[1], write_db_pics, tables[1])
     elif type == 'tags':
-        read_from(file_paths[2], write_db_tags)
+        read_write_from(file_paths[2], write_db_tags, tables[2])
 
 
 # Метод для чтения файла и записи его в таблицу
-def read_from(file, func):
+def read_write_from(file, func, table):
     data = {}
     # Если файл есть, то он прочитается и запишется в словарь
     try:
@@ -71,48 +43,30 @@ def read_from(file, func):
         data = json.loads(f.read())
         for key, value in data.items():
             print(threading.current_thread().name + " — " + file)
-            db = connect_db()
+            db = connect_db(path + db_name)
             cursor = db.cursor()
-            func(cursor, key, value)
+            func(cursor, key, value, table)
             cursor.close()
             db.commit()
             db.close()
-            sleep(0.2)
+            # sleep(0.2)
         f.close()
     # Если файла нет, то выводится сообщение
     except IOError:
         print("Файла " + file + " нет, читать нечего")
 
 
-# Запись в базу данных текста новости
-def write_db_text(cursor, key, value):
-    insert = f"insert or ignore into {tables[0]} values (:key, :value)"
-    cursor.execute(insert, (key, value))
-
-
-# Запись в базу данных картинок новости
-def write_db_pics(cursor, key, value):
-    insert = f"insert or ignore into {tables[1]} values (:key, :value)"
-    cursor.execute(insert, (key, json.dumps(value)))
-
-
-# Запись в базу данных тегов и ссылок новости
-def write_db_tags(cursor, key, value):
-    insert = f"insert or ignore into {tables[2]} values (:key, :value)"
-    cursor.execute(insert, (key, json.dumps(value)))
-
 
 # Метод для чтения. Используется как поток
 def readproc():
     # Подключение к бд
     print("Подключаюсь к базе данных")
-    db = connect_db()
+    db = connect_db(path + db_name)
 
     # Создание таблиц
     cursor = db.cursor()
-    cursor.execute(create_tables("text"))
-    cursor.execute(create_tables("pics"))
-    cursor.execute(create_tables("tags"))
+    for table in tables:
+        cursor.execute(create_table_query(table))
 
     # Закрываемс соединение с бд
     # Для каждого потока в дальнейшем будет установлено новое соединение
@@ -136,11 +90,11 @@ def readproc():
                 data = conn.recv(1)
                 if not data:
                     break
-                print("Получаю управление от первого процесса")
+                print("\nПолучаю управление от первого процесса")
 
-                text_thread = threading.Thread(target=read, args=("text",))
-                pics_thread = threading.Thread(target=read, args=("pics",))
-                tags_thread = threading.Thread(target=read, args=("tags",))
+                text_thread = threading.Thread(target=read_write, args=("text",), daemon=True)
+                pics_thread = threading.Thread(target=read_write, args=("pics",), daemon=True)
+                tags_thread = threading.Thread(target=read_write, args=("tags",), daemon=True)
                 text_thread.name = "п2т1"
                 pics_thread.name = "п2т2"
                 tags_thread.name = "п2т3"
@@ -156,6 +110,7 @@ def readproc():
                 tags_thread.join()
 
                 # Передача управления другому потоку
+                print("Передаю управление первому процессу")
                 conn.sendall((1).to_bytes(1, 'big'))
     except KeyboardInterrupt:
         print("\nЗакрываю сокет")
