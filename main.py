@@ -46,34 +46,33 @@ def write(feed, type, e):
 # Метод для записи и вызова необходимого метода сбора данных
 def write_to(feed, func, file, locker, e):
     data = {}
-    # Если файл есть, то он прочитается и запишется в словарь
-    try:
-        f = open(file, "r")
-        data = json.loads(f.read())
-    # Если файла нет, работа продолжится с пустым словарём
-    except IOError:
-        print("Файла для записи текста нет, создам его")
     for p in feed:
+        # Если файл есть, то он прочитается и запишется в словарь
+        try:
+            with open(file, "r") as f:
+                filedata = f.read()
+                data = json.loads(filedata) if len(filedata) != 0 else {}
+                # print(data)
+        # Если файла нет, работа продолжится с пустым словарём
+        except IOError:
+            print("Файла для записи текста нет, создам его")
         locker.acquire()
         # Функция соберёт данные и добавит их в словарь
         data = func(p, data)
         # Файл перезапишется, вместо него будет наш словарь
-        f = open(file, "w")
-        f.write(json.dumps(data))
-        f.close()
-        # sleep(0.5)
+        with open(file, "w") as f:
+            f.write(json.dumps(data, ensure_ascii=False, indent=4))
+        sleep(0.2)
         locker.release()
         e.set()
-        # iter_barrier.wait()
     barrier.wait()
 
 def read_from(file, locker, color="\33[43m"):
     # Пробуем получить лок на файл. Если не получаем, ждём
     if locker.acquire():
-        f = open(file, "r")
-        print(color + threading.current_thread().name + " – " + file + ": " + str(len(json.loads(f.read()))) + "\33[0m")
-        f.close()
-        # sleep(0.5)
+        with open(file, "r") as f:
+            print(color + threading.current_thread().name + " – " + file + ": " + str(len(json.loads(f.read()))) + "\33[0m")
+        sleep(0.2)
         locker.release()
 
 # Метод для чтения файлов между итерациями записи (четвёртый поток)
@@ -111,7 +110,6 @@ def writeproc():
     try:
         # Бесконечно получаем и записываем новые посты
         while True:
-            print("\nПолучаю управление от второго процесса")
             # Ивент для того, чтоб четвёртый поток не забрал лок самым первым
             e4 = threading.Event()
 
