@@ -39,8 +39,8 @@ def read_write_from(file, func, table):
     data = {}
     # Если файл есть, то он прочитается и запишется в словарь
     try:
-        f = open(file, "r")
-        data = json.loads(f.read())
+        with open(file, "r") as f:
+            data = json.loads(f.read())
         for key, value in data.items():
             print(threading.current_thread().name + " — " + file)
             db = connect_db(path + db_name)
@@ -49,8 +49,7 @@ def read_write_from(file, func, table):
             cursor.close()
             db.commit()
             db.close()
-            # sleep(0.2)
-        f.close()
+            sleep(0.2)
     # Если файла нет, то выводится сообщение
     except IOError:
         print("Файла " + file + " нет, читать нечего")
