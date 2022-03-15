@@ -29,7 +29,7 @@ for i in file_names:
 # Количество постов
 count = 10
 
-# Токен для получения данных
+# Токен для получения данных :)
 TOKEN = 'b90e9d2bda67118b2c50aa83d48a9c5aaf6f7f5ea716103b0ff2ffe22392ef7d8d3198e55abbb86b1f133'
 
 
